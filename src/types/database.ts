@@ -8,6 +8,7 @@ export type Database = {
           id: string
           created_at: string
           session_date: string
+          session_type: string
           location: string | null
           notes: string | null
           user_id: string
@@ -16,6 +17,7 @@ export type Database = {
           id?: string
           created_at?: string
           session_date: string
+          session_type?: string
           location?: string | null
           notes?: string | null
           user_id: string
@@ -24,6 +26,7 @@ export type Database = {
           id?: string
           created_at?: string
           session_date?: string
+          session_type?: string
           location?: string | null
           notes?: string | null
           user_id?: string
@@ -40,7 +43,6 @@ export type Database = {
           lie_surface: string | null
           lie_slope: string[] | null
           ball_position: string[] | null
-          shot_type: string | null
           club: string | null
           notes: string | null
         }
@@ -54,7 +56,6 @@ export type Database = {
           lie_surface?: string | null
           lie_slope?: string[] | null
           ball_position?: string[] | null
-          shot_type?: string | null
           club?: string | null
           notes?: string | null
         }
@@ -68,7 +69,6 @@ export type Database = {
           lie_surface?: string | null
           lie_slope?: string[] | null
           ball_position?: string[] | null
-          shot_type?: string | null
           club?: string | null
           notes?: string | null
         }

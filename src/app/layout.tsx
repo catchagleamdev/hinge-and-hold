@@ -3,13 +3,16 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Hinge & Hold',
-  description: 'Golf session and shot tracker',
+  description: 'Chipping practice tracker',
+  viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900">{children}</body>
+      <body className="bg-[#f5e6c8] text-[#1a1a1a] min-h-screen">
+        {children}
+      </body>
     </html>
   )
 }
