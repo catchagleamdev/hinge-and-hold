@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 export default async function LoginPage() {
   const supabase = await createClient()
@@ -9,11 +10,16 @@ export default async function LoginPage() {
 
   async function signInWithGoogle() {
     'use server'
+    const headersList = await headers()
+    const host = headersList.get('host')
+    const protocol = host?.startsWith('localhost') ? 'http' : 'https'
+    const origin = `${protocol}://${host}`
+
     const supabase = await createClient()
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        redirectTo: `${origin}/auth/callback`,
       },
     })
     if (data.url) redirect(data.url)
