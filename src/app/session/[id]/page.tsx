@@ -9,23 +9,7 @@ const LIE_SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BALL_POSITION_OPTIONS = ['Level', 'Above Feet', 'Below Feet']
 const PROXIMITY_OPTIONS = ['Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
 const LIE_SURFACE_OPTIONS = ['Fairway', 'Fringe', 'Rough']
-const CLUB_OPTIONS = ['50°', '54°', '60°']
-
-function ToggleRadioGroup({ name, options }: { name: string; options: string[] }) {
-  const cols = options.length === 4 ? 'grid-cols-2' : 'grid-cols-3'
-  return (
-    <div className={`grid ${cols} gap-2`}>
-      {options.map(opt => (
-        <label key={opt} className="cursor-pointer">
-          <input type="radio" name={name} value={opt} className="sr-only peer" />
-          <span className="flex items-center justify-center min-h-[44px] text-base rounded-xl border border-[#1a4731] bg-white text-[#1a4731] peer-checked:bg-[#1a4731] peer-checked:text-[#f5e6c8] select-none transition-colors">
-            {opt}
-          </span>
-        </label>
-      ))}
-    </div>
-  )
-}
+const CLUB_OPTIONS = ['PW', 'GW', 'AW', 'SW', 'LW']
 
 function ToggleCheckboxGroup({ name, options }: { name: string; options: string[] }) {
   const cols = options.length === 4 ? 'grid-cols-2' : 'grid-cols-3'
@@ -70,12 +54,13 @@ export default async function SessionPage({ params }) {
   async function addShot(formData) {
     'use server'
     const supabase = await createClient()
+    const contacts = formData.getAll('contact')
     const misses = formData.getAll('miss_direction')
     const lieSlope = formData.getAll('lie_slope')
     const ballPosition = formData.getAll('ball_position')
     await supabase.from('shots').insert({
       session_id: id,
-      contact: formData.get('contact') || null,
+      contact: contacts.length > 0 ? contacts : null,
       miss_direction: misses.length > 0 ? misses : null,
       proximity: formData.get('proximity') || null,
       lie_surface: formData.get('lie_surface') || null,
@@ -124,15 +109,15 @@ export default async function SessionPage({ params }) {
                   {shot.ball_position && shot.ball_position.length > 0 && (
                     <span className="text-[#4a4a4a] text-sm">{shot.ball_position.join(', ')}</span>
                   )}
-                  {shot.contact && (
+                  {shot.contact && shot.contact.length > 0 && (
                     <span
                       className={`text-sm font-medium px-2 py-0.5 rounded-md ${
-                        shot.contact === 'Fat'
+                        shot.contact.includes('Fat')
                           ? 'text-[#8b0000] bg-[#8b0000]/10'
                           : 'text-[#1a4731] bg-[#1a4731]/10'
                       }`}
                     >
-                      {shot.contact}
+                      {shot.contact.join(', ')}
                     </span>
                   )}
                   {shot.miss_direction && shot.miss_direction.length > 0 && (
@@ -174,7 +159,7 @@ export default async function SessionPage({ params }) {
             {/* Contact */}
             <div>
               <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Contact</label>
-              <ToggleRadioGroup name="contact" options={CONTACT_OPTIONS} />
+              <ToggleCheckboxGroup name="contact" options={CONTACT_OPTIONS} />
             </div>
 
             {/* Miss */}

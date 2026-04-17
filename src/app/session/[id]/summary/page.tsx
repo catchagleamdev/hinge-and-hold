@@ -47,10 +47,14 @@ export default async function SessionSummaryPage({ params }) {
   const shotList = shots ?? []
   const totalShots = shotList.length
 
-  // Contact breakdown
+  // Contact breakdown (contact is text[])
   const contactCounts = { Fat: 0, Pure: 0, Thin: 0 }
   shotList.forEach(s => {
-    if (s.contact && s.contact in contactCounts) contactCounts[s.contact]++
+    if (s.contact) {
+      s.contact.forEach((c: string) => {
+        if (c in contactCounts) contactCounts[c as keyof typeof contactCounts]++
+      })
+    }
   })
 
   // Miss breakdown

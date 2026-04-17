@@ -37,7 +37,7 @@ export type Database = {
           id: string
           session_id: string
           created_at: string
-          contact: string | null
+          contact: string[] | null
           miss_direction: string[] | null
           proximity: string | null
           lie_surface: string | null

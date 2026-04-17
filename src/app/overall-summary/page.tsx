@@ -47,10 +47,14 @@ export default async function OverallSummaryPage() {
 
   const totalShots = shots.length
 
-  // Contact breakdown
+  // Contact breakdown (contact is text[])
   const contactCounts = { Fat: 0, Pure: 0, Thin: 0 }
   shots.forEach(s => {
-    if (s.contact && s.contact in contactCounts) contactCounts[s.contact]++
+    if (s.contact) {
+      s.contact.forEach((c: string) => {
+        if (c in contactCounts) contactCounts[c as keyof typeof contactCounts]++
+      })
+    }
   })
 
   // Miss breakdown
