@@ -7,7 +7,9 @@ const CONTACT_OPTIONS = ['Pure','Thin','Fat','Toe','Heel','Top']
 const MISS_OPTIONS = ['Left','Right','Long','Short','Pull','Push','Hook','Slice']
 const LIE_OPTIONS = ['Tee','Fairway','Rough','Bunker','Fringe','Green']
 
-export default async function SessionPage({ params }: { params: { id: string } }) {
+export default async function SessionPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -15,7 +17,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
   const { data: session } = await supabase
     .from('sessions')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!session) notFound()
@@ -23,7 +25,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
   const { data: shots } = await supabase
     .from('shots')
     .select('*')
-    .eq('session_id', params.id)
+    .eq('session_id', id)
     .order('created_at', { ascending: true })
 
   async function addShot(formData: FormData) {
@@ -31,7 +33,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
     const supabase = await createClient()
     const misses = formData.getAll('miss_direction') as string[]
     await supabase.from('shots').insert({
-      session_id: params.id,
+      session_id: id,
       contact: (formData.get('contact') as string) || null,
       miss_direction: misses.length > 0 ? misses : null,
       proximity: (formData.get('proximity') as string) || null,
@@ -40,7 +42,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
       club: (formData.get('club') as string) || null,
       notes: (formData.get('notes') as string) || null,
     })
-    redirect(`/dashboard/sessions/${params.id}`)
+    redirect(`/dashboard/sessions/${id}`)
   }
 
   return (
