@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types/supabase'
 
 type SessionRow = Database['public']['Tables']['sessions']['Row']
 type SessionWithCount = SessionRow & { shots: [{ count: number }] }
