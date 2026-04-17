@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import MethodBanner from '@/components/MethodBanner'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -46,6 +47,8 @@ export default async function HomePage() {
       </header>
 
       <main className="flex-1 flex flex-col px-4 py-8 gap-4 max-w-md mx-auto w-full">
+        <MethodBanner />
+
         <form action={createChippingSession} className="w-full">
           <button
             type="submit"
