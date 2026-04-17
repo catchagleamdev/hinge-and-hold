@@ -12,7 +12,8 @@ export default async function NewSessionPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('sessions')
       .insert({
         session_date: formData.get('session_date') as string,

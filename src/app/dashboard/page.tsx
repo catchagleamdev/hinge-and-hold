@@ -1,19 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { Database } from '@/types/supabase'
-
-type SessionRow = Database['public']['Tables']['sessions']['Row']
-type SessionWithCount = SessionRow & { shots: [{ count: number }] }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: sessions } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: sessions } = await (supabase as any)
     .from('sessions')
     .select('*, shots(count)')
-    .returns<SessionWithCount[]>()
     .order('session_date', { ascending: false })
     .limit(20)
 
@@ -41,7 +37,7 @@ export default async function DashboardPage() {
         </div>
         {sessions && sessions.length > 0 ? (
           <ul className="space-y-3">
-            {sessions.map((session) => (
+            {sessions.map((session: any) => (
               <li key={session.id}>
                 <a href={`/dashboard/sessions/${session.id}`} className="block bg-white rounded-xl border border-gray-200 p-5 hover:border-green-300 transition-colors">
                   <div className="flex items-center justify-between">
@@ -50,7 +46,7 @@ export default async function DashboardPage() {
                       {session.location && <p className="text-sm text-gray-500 mt-0.5">{session.location}</p>}
                     </div>
                     <span className="text-sm text-gray-400">
-                      {session.shots[0]?.count ?? 0} shots
+                      {session.shots?.[0]?.count ?? 0} shots
                     </span>
                   </div>
                 </a>

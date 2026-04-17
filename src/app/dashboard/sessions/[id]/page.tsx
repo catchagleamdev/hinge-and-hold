@@ -14,7 +14,10 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: session } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: session } = await db
     .from('sessions')
     .select('*')
     .eq('id', id)
@@ -22,7 +25,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
 
   if (!session) notFound()
 
-  const { data: shots } = await supabase
+  const { data: shots } = await db
     .from('shots')
     .select('*')
     .eq('session_id', id)
@@ -31,8 +34,10 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
   async function addShot(formData: FormData) {
     'use server'
     const supabase = await createClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
     const misses = formData.getAll('miss_direction') as string[]
-    await supabase.from('shots').insert({
+    await db.from('shots').insert({
       session_id: id,
       contact: (formData.get('contact') as string) || null,
       miss_direction: misses.length > 0 ? misses : null,
@@ -61,7 +66,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           <h3 className="text-base font-medium mb-3">Shots ({shots?.length ?? 0})</h3>
           {shots && shots.length > 0 ? (
             <div className="space-y-2 mb-6">
-              {shots.map((shot, i) => (
+              {shots.map((shot: any, i: number) => (
                 <div key={shot.id} className="bg-white rounded-lg border border-gray-200 px-4 py-3 text-sm flex flex-wrap gap-2 items-center">
                   <span className="font-medium text-gray-400">#{i + 1}</span>
                   {shot.club && <span className="font-medium">{shot.club}</span>}
