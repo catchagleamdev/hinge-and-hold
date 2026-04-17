@@ -37,7 +37,9 @@ export type Database = {
           contact: string | null
           miss_direction: string[] | null
           proximity: string | null
-          lie: string | null
+          lie_surface: string | null
+          lie_slope: string[] | null
+          ball_position: string[] | null
           shot_type: string | null
           club: string | null
           notes: string | null
@@ -49,7 +51,9 @@ export type Database = {
           contact?: string | null
           miss_direction?: string[] | null
           proximity?: string | null
-          lie?: string | null
+          lie_surface?: string | null
+          lie_slope?: string[] | null
+          ball_position?: string[] | null
           shot_type?: string | null
           club?: string | null
           notes?: string | null
@@ -61,7 +65,9 @@ export type Database = {
           contact?: string | null
           miss_direction?: string[] | null
           proximity?: string | null
-          lie?: string | null
+          lie_surface?: string | null
+          lie_slope?: string[] | null
+          ball_position?: string[] | null
           shot_type?: string | null
           club?: string | null
           notes?: string | null
