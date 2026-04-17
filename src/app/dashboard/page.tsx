@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import type { Database } from '@/types/database'
+
+type SessionRow = Database['public']['Tables']['sessions']['Row']
+type SessionWithCount = SessionRow & { shots: [{ count: number }] }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -9,6 +13,7 @@ export default async function DashboardPage() {
   const { data: sessions } = await supabase
     .from('sessions')
     .select('*, shots(count)')
+    .returns<SessionWithCount[]>()
     .order('session_date', { ascending: false })
     .limit(20)
 
@@ -45,7 +50,7 @@ export default async function DashboardPage() {
                       {session.location && <p className="text-sm text-gray-500 mt-0.5">{session.location}</p>}
                     </div>
                     <span className="text-sm text-gray-400">
-                      {(session as any).shots?.[0]?.count ?? 0} shots
+                      {session.shots[0]?.count ?? 0} shots
                     </span>
                   </div>
                 </a>
