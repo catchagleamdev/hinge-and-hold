@@ -35,6 +35,25 @@ export default async function HomePage() {
     if (data) redirect(`/session/${data.id}`)
   }
 
+  async function createPuttingSession() {
+    'use server'
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
+
+    const { data } = await supabase
+      .from('sessions')
+      .insert({
+        session_date: new Date().toISOString().split('T')[0],
+        user_id: user.id,
+        session_type: 'putting',
+      })
+      .select()
+      .single()
+
+    if (data) redirect(`/putting/${data.id}`)
+  }
+
   async function signOut() {
     'use server'
     const supabase = await createClient()
@@ -66,9 +85,18 @@ export default async function HomePage() {
           </button>
         </form>
 
+        <form action={createPuttingSession} className="w-full">
+          <button
+            type="submit"
+            className="w-full min-h-[60px] bg-white border-2 border-[#1a4731] text-[#1a4731] text-lg font-semibold rounded-2xl flex items-center justify-center"
+          >
+            New Putting Session
+          </button>
+        </form>
+
         <a
           href="/coming-soon"
-          className="w-full min-h-[60px] bg-white border-2 border-[#1a4731] text-[#1a4731] text-lg font-semibold rounded-2xl flex items-center justify-center"
+          className="w-full min-h-[60px] bg-white border-2 border-[#1a4731]/40 text-[#1a4731]/60 text-lg font-semibold rounded-2xl flex items-center justify-center"
         >
           New Pitching Session
         </a>

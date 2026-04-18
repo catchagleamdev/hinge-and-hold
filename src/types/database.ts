@@ -32,6 +32,44 @@ export type Database = {
           user_id?: string
         }
       }
+      putts: {
+        Row: {
+          id: string
+          session_id: string
+          created_at: string
+          result: string | null
+          miss_direction: string[] | null
+          putt_length: string | null
+          green_speed: string | null
+          slope: string | null
+          break: string | null
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          created_at?: string
+          result?: string | null
+          miss_direction?: string[] | null
+          putt_length?: string | null
+          green_speed?: string | null
+          slope?: string | null
+          break?: string | null
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          created_at?: string
+          result?: string | null
+          miss_direction?: string[] | null
+          putt_length?: string | null
+          green_speed?: string | null
+          slope?: string | null
+          break?: string | null
+          notes?: string | null
+        }
+      }
       shots: {
         Row: {
           id: string

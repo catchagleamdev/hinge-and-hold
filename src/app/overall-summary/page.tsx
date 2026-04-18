@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 const PROXIMITY_ORDER = ['Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
+const PUTT_LENGTH_ORDER = ['Under 3 ft', '3–6 ft', '6–10 ft', '10–20 ft', '20 ft+']
 
 function StatBar({ label, count, total, danger }: { label: string; count: number; total: number; danger?: boolean }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
@@ -10,7 +11,7 @@ function StatBar({ label, count, total, danger }: { label: string; count: number
     <div>
       <div className="flex justify-between text-sm mb-1">
         <span className={`font-medium ${danger ? 'text-[#8b0000]' : 'text-[#1a1a1a]'}`}>{label}</span>
-        <span className="text-[#4a4a4a]">{count} shots ({pct}%)</span>
+        <span className="text-[#4a4a4a]">{count} ({pct}%)</span>
       </div>
       <div className="h-3 bg-[#f5e6c8] rounded-full overflow-hidden border border-[#1a4731]/20">
         <div
@@ -33,21 +34,37 @@ export default async function OverallSummaryPage() {
     .eq('user_id', user.id)
     .order('session_date', { ascending: false })
 
-  const sessionIds = (sessions ?? []).map(s => s.id)
-  const sessionCount = sessionIds.length
+  const allSessions = sessions ?? []
+  const chippingSessions = allSessions.filter(s => s.session_type === 'chipping')
+  const puttingSessions = allSessions.filter(s => s.session_type === 'putting')
 
+  const chippingIds = chippingSessions.map(s => s.id)
+  const puttingIds = puttingSessions.map(s => s.id)
+
+  // Chipping data
   let shots: any[] = []
-  if (sessionIds.length > 0) {
+  if (chippingIds.length > 0) {
     const { data } = await supabase
       .from('shots')
       .select('contact, miss_direction, proximity')
-      .in('session_id', sessionIds)
+      .in('session_id', chippingIds)
     shots = data ?? []
   }
 
-  const totalShots = shots.length
+  // Putting data
+  let putts: any[] = []
+  if (puttingIds.length > 0) {
+    const { data } = await supabase
+      .from('putts')
+      .select('result, miss_direction, putt_length')
+      .in('session_id', puttingIds)
+    putts = data ?? []
+  }
 
-  // Contact breakdown (contact is text[])
+  const totalShots = shots.length
+  const totalPutts = putts.length
+
+  // --- Chipping stats ---
   const contactCounts = { Fat: 0, Pure: 0, Thin: 0 }
   shots.forEach(s => {
     if (s.contact) {
@@ -57,7 +74,6 @@ export default async function OverallSummaryPage() {
     }
   })
 
-  // Miss breakdown
   const missCounts: Record<string, number> = {}
   shots.forEach(s => {
     if (s.miss_direction) {
@@ -67,7 +83,6 @@ export default async function OverallSummaryPage() {
     }
   })
 
-  // Proximity breakdown
   const proximityCounts: Record<string, number> = {}
   shots.forEach(s => {
     if (s.proximity) proximityCounts[s.proximity] = (proximityCounts[s.proximity] || 0) + 1
@@ -76,6 +91,21 @@ export default async function OverallSummaryPage() {
   const shotsMissed = shots.filter(s => s.miss_direction && s.miss_direction.length > 0).length
   const mostCommonContact = Object.entries(contactCounts).sort((a, b) => b[1] - a[1])[0]
   const mostCommonMiss = Object.entries(missCounts).sort((a, b) => b[1] - a[1])[0]
+
+  // --- Putting stats ---
+  const puttsMade = putts.filter(p => p.result === 'Made 🎯').length
+
+  const makeByLength: Record<string, { made: number; total: number }> = {}
+  putts.forEach(p => {
+    if (!p.putt_length) return
+    if (!makeByLength[p.putt_length]) makeByLength[p.putt_length] = { made: 0, total: 0 }
+    makeByLength[p.putt_length].total++
+    if (p.result === 'Made 🎯') makeByLength[p.putt_length].made++
+  })
+
+  const hasChipping = totalShots > 0
+  const hasPutting = totalPutts > 0
+  const hasAnything = hasChipping || hasPutting
 
   return (
     <div className="min-h-screen bg-[#f5e6c8] flex flex-col">
@@ -87,75 +117,122 @@ export default async function OverallSummaryPage() {
 
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 space-y-5">
 
-        {totalShots === 0 ? (
+        {!hasAnything ? (
           <div className="text-center py-16 text-[#4a4a4a] text-base">
-            No shots logged yet. Start a chipping session.
+            No sessions logged yet. Start chipping or putting.
           </div>
         ) : (
           <>
-            {/* Totals */}
-            <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-[#1a4731]">{totalShots}</p>
-                  <p className="text-sm text-[#4a4a4a] mt-1">Total Shots</p>
+            {/* ── Chipping ── */}
+            {hasChipping && (
+              <>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-bold text-[#1a4731]">Chipping</h2>
+                  <div className="flex-1 h-px bg-[#1a4731]/20" />
                 </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-[#1a4731]">{sessionCount}</p>
-                  <p className="text-sm text-[#4a4a4a] mt-1">Sessions</p>
+
+                <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-[#1a4731]">{totalShots}</p>
+                      <p className="text-sm text-[#4a4a4a] mt-1">Total Shots</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-[#1a4731]">{chippingSessions.length}</p>
+                      <p className="text-sm text-[#4a4a4a] mt-1">Sessions</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Contact breakdown */}
-            <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
-              <h2 className="text-base font-semibold text-[#1a1a1a]">Contact</h2>
-              <StatBar label="Pure" count={contactCounts.Pure} total={totalShots} />
-              <StatBar label="Thin" count={contactCounts.Thin} total={totalShots} />
-              <StatBar label="Fat" count={contactCounts.Fat} total={totalShots} danger />
-            </div>
+                <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                  <h3 className="text-base font-semibold text-[#1a1a1a]">Contact</h3>
+                  <StatBar label="Pure" count={contactCounts.Pure} total={totalShots} />
+                  <StatBar label="Thin" count={contactCounts.Thin} total={totalShots} />
+                  <StatBar label="Fat" count={contactCounts.Fat} total={totalShots} danger />
+                </div>
 
-            {/* Miss breakdown */}
-            {Object.keys(missCounts).length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
-                <h2 className="text-base font-semibold text-[#1a1a1a]">Miss Direction</h2>
-                {Object.entries(missCounts)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([miss, count]) => (
-                    <StatBar key={miss} label={miss} count={count} total={shotsMissed} />
-                  ))}
-              </div>
+                {Object.keys(missCounts).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                    <h3 className="text-base font-semibold text-[#1a1a1a]">Miss Direction</h3>
+                    {Object.entries(missCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([miss, count]) => (
+                        <StatBar key={miss} label={miss} count={count} total={shotsMissed} />
+                      ))}
+                  </div>
+                )}
+
+                {Object.keys(proximityCounts).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                    <h3 className="text-base font-semibold text-[#1a1a1a]">Proximity</h3>
+                    {PROXIMITY_ORDER.filter(p => proximityCounts[p]).map(p => (
+                      <StatBar
+                        key={p}
+                        label={p}
+                        count={proximityCounts[p]}
+                        total={totalShots}
+                        danger={p === '11 ft+'}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {(mostCommonContact || mostCommonMiss) && (
+                  <div className="bg-[#1a4731] rounded-2xl p-5">
+                    <h3 className="text-[#f5e6c8] text-base font-semibold mb-2">Pattern</h3>
+                    <p className="text-[#f5e6c8] text-base leading-relaxed">
+                      {mostCommonContact && mostCommonContact[1] > 0 && (
+                        <>Most common contact: <strong>{mostCommonContact[0]}</strong>.</>
+                      )}
+                      {mostCommonMiss && mostCommonMiss[1] > 0 && (
+                        <> Most common miss: <strong>{mostCommonMiss[0]}</strong>.</>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Proximity breakdown */}
-            {Object.keys(proximityCounts).length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
-                <h2 className="text-base font-semibold text-[#1a1a1a]">Proximity</h2>
-                {PROXIMITY_ORDER.filter(p => proximityCounts[p]).map(p => (
-                  <StatBar
-                    key={p}
-                    label={p}
-                    count={proximityCounts[p]}
-                    total={totalShots}
-                    danger={p === '11 ft+'}
-                  />
-                ))}
-              </div>
-            )}
+            {/* ── Putting ── */}
+            {hasPutting && (
+              <>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-bold text-[#1a4731]">Putting</h2>
+                  <div className="flex-1 h-px bg-[#1a4731]/20" />
+                </div>
 
-            {/* Pattern callout */}
-            {(mostCommonContact || mostCommonMiss) && (
-              <div className="bg-[#1a4731] rounded-2xl p-5">
-                <h2 className="text-[#f5e6c8] text-base font-semibold mb-2">Pattern</h2>
-                <p className="text-[#f5e6c8] text-base leading-relaxed">
-                  {mostCommonContact && mostCommonContact[1] > 0 && (
-                    <>Most common contact: <strong>{mostCommonContact[0]}</strong>.</>
-                  )}
-                  {mostCommonMiss && mostCommonMiss[1] > 0 && (
-                    <> Most common miss: <strong>{mostCommonMiss[0]}</strong>.</>
-                  )}
-                </p>
-              </div>
+                <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-[#1a4731]">{totalPutts}</p>
+                      <p className="text-sm text-[#4a4a4a] mt-1">Total Putts</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-[#1a4731]">{puttingSessions.length}</p>
+                      <p className="text-sm text-[#4a4a4a] mt-1">Sessions</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                  <h3 className="text-base font-semibold text-[#1a1a1a]">Overall Make %</h3>
+                  <StatBar label="Made" count={puttsMade} total={totalPutts} />
+                </div>
+
+                {Object.keys(makeByLength).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                    <h3 className="text-base font-semibold text-[#1a1a1a]">Make % by Distance</h3>
+                    {PUTT_LENGTH_ORDER.filter(l => makeByLength[l]).map(l => (
+                      <StatBar
+                        key={l}
+                        label={l}
+                        count={makeByLength[l].made}
+                        total={makeByLength[l].total}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
