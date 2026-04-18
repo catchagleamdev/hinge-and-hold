@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import AnalysisButton from '@/components/AnalysisButton'
+import ShotList from '@/components/ShotList'
 import ShotForm from '@/components/ShotForm'
 
 export default async function SessionPage({ params }) {
@@ -38,61 +38,8 @@ export default async function SessionPage({ params }) {
 
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 space-y-5">
 
-        {/* Shot list */}
-        <div>
-          <h2 className="text-base font-semibold text-[#1a1a1a] mb-3">
-            Shots logged: {shotList.length}
-          </h2>
-          {shotList.length > 0 ? (
-            <div className="space-y-2">
-              {shotList.map((shot, i) => (
-                <div key={shot.id} className="bg-white rounded-xl border border-[#1a4731]/20 px-4 py-3 flex flex-wrap gap-x-3 gap-y-1 items-center">
-                  <span className="text-[#4a4a4a] text-sm font-medium">#{i + 1}</span>
-                  {shot.club && (
-                    <span className="text-[#1a1a1a] text-sm font-semibold">{shot.club}</span>
-                  )}
-                  {shot.lie_surface && (
-                    <span className="text-[#4a4a4a] text-sm">{shot.lie_surface}</span>
-                  )}
-                  {shot.lie_slope && shot.lie_slope.length > 0 && (
-                    <span className="text-[#4a4a4a] text-sm">{shot.lie_slope.join(', ')}</span>
-                  )}
-                  {shot.ball_position && shot.ball_position.length > 0 && (
-                    <span className="text-[#4a4a4a] text-sm">{shot.ball_position.join(', ')}</span>
-                  )}
-                  {shot.contact && shot.contact.length > 0 && (
-                    <span
-                      className={`text-sm font-medium px-2 py-0.5 rounded-md ${
-                        shot.contact.includes('Fat')
-                          ? 'text-[#8b0000] bg-[#8b0000]/10'
-                          : 'text-[#1a4731] bg-[#1a4731]/10'
-                      }`}
-                    >
-                      {shot.contact.join(', ')}
-                    </span>
-                  )}
-                  {shot.miss_direction && shot.miss_direction.length > 0 && (
-                    <span className="text-[#4a4a4a] text-sm">{shot.miss_direction.join(', ')}</span>
-                  )}
-                  {shot.proximity && (
-                    <span
-                      className={`text-sm ml-auto ${
-                        shot.proximity === '11 ft+' ? 'text-[#8b0000] font-medium' : 'text-[#4a4a4a]'
-                      }`}
-                    >
-                      {shot.proximity}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[#4a4a4a] text-base text-center py-4">No shots yet. Log your first.</p>
-          )}
-        </div>
-
-        {/* Quick Analysis */}
-        <AnalysisButton shots={shotList} />
+        {/* Shot list with delete + analysis button */}
+        <ShotList initialShots={shotList} />
 
         {/* Save Session */}
         <a

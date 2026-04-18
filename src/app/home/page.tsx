@@ -2,11 +2,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import MethodBanner from '@/components/MethodBanner'
+import SessionList from '@/components/SessionList'
 
 export default async function HomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('id, session_date, session_type, location')
+    .eq('user_id', user.id)
+    .order('session_date', { ascending: false })
+    .limit(50)
 
   async function createChippingSession() {
     'use server'
@@ -71,6 +79,16 @@ export default async function HomePage() {
         >
           Overall Summary
         </a>
+
+        {/* Session list with delete */}
+        {sessions && sessions.length > 0 && (
+          <div className="pt-2">
+            <h2 className="text-sm font-semibold text-[#4a4a4a] mb-3 uppercase tracking-wide">
+              Past Sessions
+            </h2>
+            <SessionList initialSessions={sessions} />
+          </div>
+        )}
       </main>
     </div>
   )
