@@ -101,8 +101,10 @@ export default function ShotList({
                 )}
                 {shot.proximity && (
                   <span
-                    className={`text-sm ${
-                      shot.proximity === '11 ft+' ? 'text-[#8b0000] font-medium' : 'text-[#4a4a4a]'
+                    className={`text-sm font-medium ${
+                      shot.proximity === 'Holed Out 🏆' ? 'text-[#c9a84c]' :
+                      shot.proximity === '11 ft+' ? 'text-[#8b0000]' :
+                      'text-[#4a4a4a] font-normal'
                     }`}
                   >
                     {shot.proximity}

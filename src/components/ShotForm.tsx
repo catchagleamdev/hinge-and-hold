@@ -7,7 +7,7 @@ const CONTACT_OPTIONS = ['Fat', 'Pure', 'Thin']
 const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short']
 const LIE_SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BALL_POSITION_OPTIONS = ['Level', 'Above Feet', 'Below Feet']
-const PROXIMITY_OPTIONS = ['Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
+const PROXIMITY_OPTIONS = ['Holed Out 🏆', 'Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
 const LIE_SURFACE_OPTIONS = ['Fairway', 'Fringe', 'Rough']
 const CLUB_OPTIONS = ['PW', 'GW', 'AW', 'SW', 'LW']
 
@@ -68,6 +68,7 @@ const EMPTY_PERSISTED: Persisted = {
 export default function ShotForm({ sessionId }: { sessionId: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [celebrationKey, setCelebrationKey] = useState(0)
 
   // Persisted across shots
   const [persisted, setPersisted] = useState<Persisted>(EMPTY_PERSISTED)
@@ -158,18 +159,37 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
         {/* Proximity — resets */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Proximity</label>
-          <select
-            value={proximity}
-            onChange={e => setProximity(e.target.value)}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {PROXIMITY_OPTIONS.map(p => (
-              <option key={p} value={p} style={p === '11 ft+' ? { color: '#8b0000' } : undefined}>
-                {p}
-              </option>
-            ))}
-          </select>
+          {/* key changes on each "Holed Out" selection → re-mounts → CSS animation restarts */}
+          <div key={celebrationKey} className={proximity === 'Holed Out 🏆' ? 'animate-holed-out rounded-xl' : ''}>
+            <select
+              value={proximity}
+              onChange={e => {
+                const val = e.target.value
+                setProximity(val)
+                if (val === 'Holed Out 🏆') setCelebrationKey(k => k + 1)
+              }}
+              className={`w-full min-h-[44px] border rounded-xl px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 ${
+                proximity === 'Holed Out 🏆'
+                  ? 'border-[#c9a84c] text-[#c9a84c] focus:ring-[#c9a84c]'
+                  : 'border-[#1a4731] text-[#1a1a1a] focus:ring-[#1a4731]'
+              }`}
+            >
+              <option value="">— select —</option>
+              {PROXIMITY_OPTIONS.map(p => (
+                <option
+                  key={p}
+                  value={p}
+                  style={
+                    p === 'Holed Out 🏆' ? { color: '#c9a84c' } :
+                    p === '11 ft+' ? { color: '#8b0000' } :
+                    undefined
+                  }
+                >
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Lie Surface — persists */}
