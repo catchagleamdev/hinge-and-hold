@@ -1,0 +1,12 @@
+{
+  "_comment": "Add the hinge-and-hold entry to ~/Library/Application Support/Claude/claude_desktop_config.json",
+  "hinge-and-hold": {
+    "command": "node",
+    "args": [
+      "/Users/robertclark/Documents/hinge-and-hold/mcp/hinge-and-hold-mcp.js"
+    ],
+    "env": {
+      "HINGE_AND_HOLD_API_KEY": "your-api-key-here"
+    }
+  }
+}
