@@ -1,0 +1,14 @@
+{
+  "name": "hinge-and-hold-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Hinge & Hold practice tracker",
+  "type": "module",
+  "main": "hinge-and-hold-mcp.js",
+  "scripts": {
+    "start": "node hinge-and-hold-mcp.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  }
+}
