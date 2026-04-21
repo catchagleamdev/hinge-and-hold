@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { addShot } from '@/app/session/[id]/actions'
 
 const CONTACT_OPTIONS = ['Fat', 'Pure', 'Thin']
-const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short']
+const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short', 'Lip Out']
 const LIE_SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BALL_POSITION_OPTIONS = ['Level', 'Above Feet', 'Below Feet']
 const PROXIMITY_OPTIONS = ['Holed Out 🏆', 'Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']

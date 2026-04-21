@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { addPutt } from '@/app/putting/[id]/actions'
 
 const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short']
-const PUTT_LENGTH_OPTIONS = ['Under 3 ft', '3–6 ft', '6–10 ft', '10–20 ft', '20 ft+']
+const PUTT_LENGTH_OPTIONS = ['Inside 1 ft', '1–2 ft', '2–3 ft', '3–5 ft', '5–8 ft', '8–12 ft', '12–20 ft', '20 ft+']
 const GREEN_SPEED_OPTIONS = ['Slow', 'Medium', 'Fast']
 const SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BREAK_OPTIONS = ['Straight', 'Left', 'Right']
@@ -116,10 +116,10 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
 
       <form onSubmit={handleSubmit} className="space-y-5">
 
-        {/* Result — radio-style, two large buttons, always resets */}
+        {/* Result — radio-style, three buttons, always resets */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Result</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <label className="cursor-pointer">
               <input
                 type="radio"
@@ -135,6 +135,23 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
                   : 'bg-white border-[#1a4731] text-[#1a4731]'
               }`}>
                 Made 🎯
+              </span>
+            </label>
+            <label className="cursor-pointer">
+              <input
+                type="radio"
+                name="result"
+                value="Lip Out"
+                checked={result === 'Lip Out'}
+                onChange={() => setResult('Lip Out')}
+                className="sr-only peer"
+              />
+              <span className={`flex items-center justify-center min-h-[52px] text-base font-semibold rounded-xl border-2 select-none transition-colors ${
+                result === 'Lip Out'
+                  ? 'bg-[#c9a84c] border-[#c9a84c] text-white'
+                  : 'bg-white border-[#1a4731] text-[#1a4731]'
+              }`}>
+                Lip Out
               </span>
             </label>
             <label className="cursor-pointer">
@@ -157,8 +174,8 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
           </div>
         </div>
 
-        {/* Miss Direction — only visible when Missed, always resets */}
-        {result === 'Missed' && (
+        {/* Miss Direction — visible when Missed or Lip Out, always resets */}
+        {(result === 'Missed' || result === 'Lip Out') && (
           <div>
             <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Miss Direction</label>
             <ToggleGroup options={MISS_OPTIONS} selected={miss} onChange={setMiss} />
