@@ -2,7 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 
-const PUTT_LENGTH_ORDER = ['Under 3 ft', '3–6 ft', '6–10 ft', '10–20 ft', '20 ft+']
+const PUTT_LENGTH_ORDER = ['Inside 1 ft', '1–2 ft', '2–3 ft', '3–5 ft', '5–8 ft', '8–12 ft', '12–20 ft', '20 ft+']
 
 function StatBar({ label, count, total, danger }: { label: string; count: number; total: number; danger?: boolean }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
@@ -20,6 +20,11 @@ function StatBar({ label, count, total, danger }: { label: string; count: number
       </div>
     </div>
   )
+}
+
+function comboLabel(slope: string, brk: string) {
+  const breakPart = brk === 'Straight' ? 'Straight' : `${brk} Break`
+  return `${slope} + ${breakPart}`
 }
 
 export default async function PuttingSummaryPage({ params }) {
@@ -47,7 +52,9 @@ export default async function PuttingSummaryPage({ params }) {
   const puttList = putts ?? []
   const totalPutts = puttList.length
   const madeCount = puttList.filter(p => p.result === 'Made 🎯').length
-  const missedPutts = puttList.filter(p => p.result === 'Missed')
+
+  // Missed + Lip Out putts — used for miss direction
+  const missedOrLipOut = puttList.filter(p => p.result === 'Missed' || p.result === 'Lip Out')
 
   // Make % by putt length
   const makeByLength: Record<string, { made: number; total: number }> = {}
@@ -58,9 +65,9 @@ export default async function PuttingSummaryPage({ params }) {
     if (p.result === 'Made 🎯') makeByLength[p.putt_length].made++
   })
 
-  // Miss direction breakdown (missed putts only)
+  // Miss direction (Missed + Lip Out only)
   const missCounts: Record<string, number> = {}
-  missedPutts.forEach(p => {
+  missedOrLipOut.forEach(p => {
     if (p.miss_direction) {
       p.miss_direction.forEach((m: string) => {
         missCounts[m] = (missCounts[m] || 0) + 1
@@ -68,15 +75,19 @@ export default async function PuttingSummaryPage({ params }) {
     }
   })
 
-  // Most common slope + break combination
+  // Slope + break combinations (all putts)
   const comboCounts: Record<string, number> = {}
   puttList.forEach(p => {
     if (p.slope && p.break) {
-      const key = `${p.slope} / ${p.break}`
+      const key = comboLabel(p.slope, p.break)
       comboCounts[key] = (comboCounts[key] || 0) + 1
     }
   })
-  const topCombo = Object.entries(comboCounts).sort((a, b) => b[1] - a[1])[0]
+  const sortedCombos = Object.entries(comboCounts).sort((a, b) => b[1] - a[1])
+  const topCombo = sortedCombos[0]
+
+  // Pattern callout inputs
+  const topMiss = Object.entries(missCounts).sort((a, b) => b[1] - a[1])[0]
 
   async function finish(formData) {
     'use server'
@@ -98,7 +109,7 @@ export default async function PuttingSummaryPage({ params }) {
 
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 space-y-5">
 
-        {/* Putt count + make % */}
+        {/* Putt count */}
         <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 text-center">
           <p className="text-4xl font-bold text-[#1a4731]">{totalPutts}</p>
           <p className="text-[#4a4a4a] text-base mt-1">putts logged</p>
@@ -113,7 +124,7 @@ export default async function PuttingSummaryPage({ params }) {
               <StatBar label="Made" count={madeCount} total={totalPutts} />
             </div>
 
-            {/* Make % by putt length */}
+            {/* Make % by distance */}
             {Object.keys(makeByLength).length > 0 && (
               <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
                 <h2 className="text-base font-semibold text-[#1a1a1a]">Make % by Distance</h2>
@@ -128,24 +139,42 @@ export default async function PuttingSummaryPage({ params }) {
               </div>
             )}
 
-            {/* Miss direction breakdown */}
-            {missedPutts.length > 0 && Object.keys(missCounts).length > 0 && (
+            {/* Miss direction (Missed + Lip Out only) */}
+            {missedOrLipOut.length > 0 && Object.keys(missCounts).length > 0 && (
               <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
-                <h2 className="text-base font-semibold text-[#1a1a1a]">Miss Direction</h2>
+                <h2 className="text-base font-semibold text-[#1a1a1a]">Miss Direction (Missed + Lip Out)</h2>
                 {Object.entries(missCounts)
                   .sort((a, b) => b[1] - a[1])
                   .map(([miss, count]) => (
-                    <StatBar key={miss} label={miss} count={count} total={missedPutts.length} />
+                    <StatBar key={miss} label={miss} count={count} total={missedOrLipOut.length} />
                   ))}
               </div>
             )}
 
-            {/* Most common slope + break */}
-            {topCombo && (
+            {/* Slope + break breakdown */}
+            {sortedCombos.length > 0 && (
+              <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-3">
+                <h2 className="text-base font-semibold text-[#1a1a1a]">Reads</h2>
+                {sortedCombos.map(([combo, count]) => (
+                  <div key={combo} className="flex items-center justify-between">
+                    <span className="text-[#1a1a1a] text-sm font-medium">{combo}</span>
+                    <span className="text-[#4a4a4a] text-sm">{count} putt{count !== 1 ? 's' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pattern callout */}
+            {(topCombo || topMiss) && (
               <div className="bg-[#1a4731] rounded-2xl p-5">
                 <h2 className="text-[#f5e6c8] text-base font-semibold mb-2">Pattern</h2>
                 <p className="text-[#f5e6c8] text-base leading-relaxed">
-                  Most common read: <strong>{topCombo[0]}</strong> ({topCombo[1]} putt{topCombo[1] !== 1 ? 's' : ''}).
+                  {topCombo && (
+                    <>Most putts were <strong>{topCombo[0]}</strong>.</>
+                  )}
+                  {topMiss && topMiss[1] > 0 && (
+                    <> You missed mostly <strong>{topMiss[0]}</strong>.</>
+                  )}
                 </p>
               </div>
             )}

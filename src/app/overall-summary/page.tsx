@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 const PROXIMITY_ORDER = ['Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
-const PUTT_LENGTH_ORDER = ['Under 3 ft', '3–6 ft', '6–10 ft', '10–20 ft', '20 ft+']
+const PUTT_LENGTH_ORDER = ['Inside 1 ft', '1–2 ft', '2–3 ft', '3–5 ft', '5–8 ft', '8–12 ft', '12–20 ft', '20 ft+']
 
 function StatBar({ label, count, total, danger }: { label: string; count: number; total: number; danger?: boolean }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
@@ -21,6 +21,11 @@ function StatBar({ label, count, total, danger }: { label: string; count: number
       </div>
     </div>
   )
+}
+
+function comboLabel(slope: string, brk: string) {
+  const breakPart = brk === 'Straight' ? 'Straight' : `${brk} Break`
+  return `${slope} + ${breakPart}`
 }
 
 export default async function OverallSummaryPage() {
@@ -51,12 +56,12 @@ export default async function OverallSummaryPage() {
     shots = data ?? []
   }
 
-  // Putting data
+  // Putting data — include slope + break for combo stats
   let putts: any[] = []
   if (puttingIds.length > 0) {
     const { data } = await supabase
       .from('putts')
-      .select('result, miss_direction, putt_length')
+      .select('result, miss_direction, putt_length, slope, break')
       .in('session_id', puttingIds)
     putts = data ?? []
   }
@@ -74,11 +79,11 @@ export default async function OverallSummaryPage() {
     }
   })
 
-  const missCounts: Record<string, number> = {}
+  const chipMissCounts: Record<string, number> = {}
   shots.forEach(s => {
     if (s.miss_direction) {
       s.miss_direction.forEach((m: string) => {
-        missCounts[m] = (missCounts[m] || 0) + 1
+        chipMissCounts[m] = (chipMissCounts[m] || 0) + 1
       })
     }
   })
@@ -90,10 +95,11 @@ export default async function OverallSummaryPage() {
 
   const shotsMissed = shots.filter(s => s.miss_direction && s.miss_direction.length > 0).length
   const mostCommonContact = Object.entries(contactCounts).sort((a, b) => b[1] - a[1])[0]
-  const mostCommonMiss = Object.entries(missCounts).sort((a, b) => b[1] - a[1])[0]
+  const mostCommonChipMiss = Object.entries(chipMissCounts).sort((a, b) => b[1] - a[1])[0]
 
   // --- Putting stats ---
   const puttsMade = putts.filter(p => p.result === 'Made 🎯').length
+  const missedOrLipOut = putts.filter(p => p.result === 'Missed' || p.result === 'Lip Out')
 
   const makeByLength: Record<string, { made: number; total: number }> = {}
   putts.forEach(p => {
@@ -102,6 +108,27 @@ export default async function OverallSummaryPage() {
     makeByLength[p.putt_length].total++
     if (p.result === 'Made 🎯') makeByLength[p.putt_length].made++
   })
+
+  // Miss direction (Missed + Lip Out only)
+  const puttMissCounts: Record<string, number> = {}
+  missedOrLipOut.forEach(p => {
+    if (p.miss_direction) {
+      p.miss_direction.forEach((m: string) => {
+        puttMissCounts[m] = (puttMissCounts[m] || 0) + 1
+      })
+    }
+  })
+
+  // Slope + break combo
+  const comboCounts: Record<string, number> = {}
+  putts.forEach(p => {
+    if (p.slope && p.break) {
+      const key = comboLabel(p.slope, p.break)
+      comboCounts[key] = (comboCounts[key] || 0) + 1
+    }
+  })
+  const topCombo = Object.entries(comboCounts).sort((a, b) => b[1] - a[1])[0]
+  const topPuttMiss = Object.entries(puttMissCounts).sort((a, b) => b[1] - a[1])[0]
 
   const hasChipping = totalShots > 0
   const hasPutting = totalPutts > 0
@@ -151,10 +178,10 @@ export default async function OverallSummaryPage() {
                   <StatBar label="Fat" count={contactCounts.Fat} total={totalShots} danger />
                 </div>
 
-                {Object.keys(missCounts).length > 0 && (
+                {Object.keys(chipMissCounts).length > 0 && (
                   <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
                     <h3 className="text-base font-semibold text-[#1a1a1a]">Miss Direction</h3>
-                    {Object.entries(missCounts)
+                    {Object.entries(chipMissCounts)
                       .sort((a, b) => b[1] - a[1])
                       .map(([miss, count]) => (
                         <StatBar key={miss} label={miss} count={count} total={shotsMissed} />
@@ -177,15 +204,15 @@ export default async function OverallSummaryPage() {
                   </div>
                 )}
 
-                {(mostCommonContact || mostCommonMiss) && (
+                {(mostCommonContact || mostCommonChipMiss) && (
                   <div className="bg-[#1a4731] rounded-2xl p-5">
                     <h3 className="text-[#f5e6c8] text-base font-semibold mb-2">Pattern</h3>
                     <p className="text-[#f5e6c8] text-base leading-relaxed">
                       {mostCommonContact && mostCommonContact[1] > 0 && (
                         <>Most common contact: <strong>{mostCommonContact[0]}</strong>.</>
                       )}
-                      {mostCommonMiss && mostCommonMiss[1] > 0 && (
-                        <> Most common miss: <strong>{mostCommonMiss[0]}</strong>.</>
+                      {mostCommonChipMiss && mostCommonChipMiss[1] > 0 && (
+                        <> Most common miss: <strong>{mostCommonChipMiss[0]}</strong>.</>
                       )}
                     </p>
                   </div>
@@ -230,6 +257,31 @@ export default async function OverallSummaryPage() {
                         total={makeByLength[l].total}
                       />
                     ))}
+                  </div>
+                )}
+
+                {missedOrLipOut.length > 0 && Object.keys(puttMissCounts).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-4">
+                    <h3 className="text-base font-semibold text-[#1a1a1a]">Miss Direction (Missed + Lip Out)</h3>
+                    {Object.entries(puttMissCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([miss, count]) => (
+                        <StatBar key={miss} label={miss} count={count} total={missedOrLipOut.length} />
+                      ))}
+                  </div>
+                )}
+
+                {(topCombo || topPuttMiss) && (
+                  <div className="bg-[#1a4731] rounded-2xl p-5">
+                    <h3 className="text-[#f5e6c8] text-base font-semibold mb-2">Pattern</h3>
+                    <p className="text-[#f5e6c8] text-base leading-relaxed">
+                      {topCombo && topCombo[1] > 0 && (
+                        <>Most putts were <strong>{topCombo[0]}</strong>.</>
+                      )}
+                      {topPuttMiss && topPuttMiss[1] > 0 && (
+                        <> You missed mostly <strong>{topPuttMiss[0]}</strong>.</>
+                      )}
+                    </p>
                   </div>
                 )}
               </>
