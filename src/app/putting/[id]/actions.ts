@@ -8,6 +8,7 @@ type PuttData = {
   green_speed: string | null
   slope: string | null
   break: string | null
+  miss_distance: string | null
   notes: string | null
 }
 

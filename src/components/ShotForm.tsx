@@ -4,12 +4,13 @@ import { useRouter } from 'next/navigation'
 import { addShot } from '@/app/session/[id]/actions'
 
 const CONTACT_OPTIONS = ['Fat', 'Pure', 'Thin']
-const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short', 'Lip Out']
+const MISS_DIRECTION_OPTIONS = ['Left', 'Right', 'Long', 'Short']
+const PROXIMITY_OPTIONS = ['Tap In', '1–3 ft', '3–6 ft', '6 ft+']
+const LIE_SURFACE_OPTIONS = ['Fairway', 'Fringe', 'Rough']
 const LIE_SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BALL_POSITION_OPTIONS = ['Level', 'Above Feet', 'Below Feet']
-const PROXIMITY_OPTIONS = ['Holed Out 🏆', 'Inside 1 ft', '1–3 ft', '3–6 ft', '6–10 ft', '11 ft+']
-const LIE_SURFACE_OPTIONS = ['Fairway', 'Fringe', 'Rough']
-const CLUB_OPTIONS = ['PW', 'GW', 'AW', 'SW', 'LW']
+
+type Club = { id: string; label: string; isDefault: boolean }
 
 function ToggleGroup({
   options,
@@ -51,15 +52,49 @@ function ToggleGroup({
   )
 }
 
+function RadioGroup({
+  options,
+  selected,
+  onChange,
+  cols,
+}: {
+  options: string[]
+  selected: string
+  onChange: (value: string) => void
+  cols?: string
+}) {
+  const gridCols = cols ?? (
+    options.length === 3 ? 'grid-cols-3' :
+    options.length === 4 ? 'grid-cols-2' :
+    'grid-cols-3'
+  )
+  return (
+    <div className={`grid ${gridCols} gap-2`}>
+      {options.map(opt => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(selected === opt ? '' : opt)}
+          className={`flex items-center justify-center min-h-[44px] text-base rounded-xl border-2 select-none transition-colors ${
+            selected === opt
+              ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
+              : 'bg-white border-[#1a4731] text-[#1a4731]'
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 type Persisted = {
-  club: string
   lie_surface: string
   lie_slope: string[]
   ball_position: string[]
 }
 
 const EMPTY_PERSISTED: Persisted = {
-  club: '',
   lie_surface: '',
   lie_slope: [],
   ball_position: [],
@@ -68,23 +103,67 @@ const EMPTY_PERSISTED: Persisted = {
 export default function ShotForm({ sessionId }: { sessionId: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [celebrationKey, setCelebrationKey] = useState(0)
+
+  // Club state — custom labels + selection persist for the session, survive shot submit
+  const [clubs, setClubs] = useState<Club[]>([
+    { id: 'gw', label: 'GW', isDefault: true },
+    { id: 'sw', label: 'SW', isDefault: true },
+    { id: 'lw', label: 'LW', isDefault: true },
+  ])
+  const [selectedClub, setSelectedClub] = useState<string | null>(null)
+  const [editingClubId, setEditingClubId] = useState<string | null>(null)
+  const [editingLabel, setEditingLabel] = useState('')
+  const [showAddInput, setShowAddInput] = useState(false)
+  const [addInputValue, setAddInputValue] = useState('')
 
   // Persisted across shots
   const [persisted, setPersisted] = useState<Persisted>(EMPTY_PERSISTED)
 
-  // Reset after every shot
+  // Per-shot (resets after every submit)
   const [contact, setContact] = useState<string[]>([])
-  const [miss, setMiss] = useState<string[]>([])
+  const [result, setResult] = useState('')
+  const [missDirection, setMissDirection] = useState('')
   const [proximity, setProximity] = useState('')
   const [notes, setNotes] = useState('')
 
   function clearAll() {
     setPersisted(EMPTY_PERSISTED)
+    setSelectedClub(null)
+    setEditingClubId(null)
+    setEditingLabel('')
+    setShowAddInput(false)
+    setAddInputValue('')
     setContact([])
-    setMiss([])
+    setResult('')
+    setMissDirection('')
     setProximity('')
     setNotes('')
+  }
+
+  function confirmEditClub() {
+    const newLabel = editingLabel.trim()
+    if (!newLabel || !editingClubId) return
+    const oldClub = clubs.find(c => c.id === editingClubId)
+    setClubs(prev => prev.map(c => c.id === editingClubId ? { ...c, label: newLabel } : c))
+    if (oldClub && selectedClub === oldClub.label) setSelectedClub(newLabel)
+    setEditingClubId(null)
+    setEditingLabel('')
+  }
+
+  function confirmAddClub() {
+    const label = addInputValue.trim()
+    if (!label) return
+    const id = `custom_${Date.now()}`
+    setClubs(prev => [...prev, { id, label, isDefault: false }])
+    setSelectedClub(label)
+    setShowAddInput(false)
+    setAddInputValue('')
+  }
+
+  function removeCustomClub(id: string) {
+    const club = clubs.find(c => c.id === id)
+    if (club && selectedClub === club.label) setSelectedClub(null)
+    setClubs(prev => prev.filter(c => c.id !== id))
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -92,17 +171,20 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
     startTransition(async () => {
       await addShot(sessionId, {
         contact: contact.length > 0 ? contact : null,
-        miss_direction: miss.length > 0 ? miss : null,
-        proximity: proximity || null,
+        miss_direction:
+          result === 'Lip Out 🥲' ? ['Lip Out'] :
+          result === 'Miss' && missDirection ? [missDirection] :
+          null,
+        proximity: result === 'Holed! 🎯' ? 'Holed!' : (proximity || null),
         lie_surface: persisted.lie_surface || null,
         lie_slope: persisted.lie_slope.length > 0 ? persisted.lie_slope : null,
         ball_position: persisted.ball_position.length > 0 ? persisted.ball_position : null,
-        club: persisted.club || null,
+        club: selectedClub || null,
         notes: notes || null,
       })
-      // Reset per-shot fields; persisted fields stay
       setContact([])
-      setMiss([])
+      setResult('')
+      setMissDirection('')
       setProximity('')
       setNotes('')
       router.refresh()
@@ -130,10 +212,63 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
           <ToggleGroup options={CONTACT_OPTIONS} selected={contact} onChange={setContact} />
         </div>
 
-        {/* Miss — resets */}
+        {/* Result — resets */}
         <div>
-          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Miss</label>
-          <ToggleGroup options={MISS_OPTIONS} selected={miss} onChange={setMiss} />
+          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Result</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(['Miss', 'Holed! 🎯', 'Lip Out 🥲'] as const).map(opt => (
+              <label key={opt} className="cursor-pointer">
+                <input
+                  type="radio"
+                  name="shot-result"
+                  value={opt}
+                  checked={result === opt}
+                  onChange={() => {
+                    setResult(opt)
+                    if (opt !== 'Miss') setMissDirection('')
+                  }}
+                  className="sr-only peer"
+                />
+                <span className={`flex items-center justify-center min-h-[44px] text-base rounded-xl border-2 select-none transition-colors ${
+                  result === opt && opt === 'Holed! 🎯'
+                    ? 'bg-[#c9a84c] border-[#c9a84c] text-white'
+                    : result === opt
+                    ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
+                    : 'bg-white border-[#1a4731] text-[#1a4731]'
+                }`}>
+                  {opt}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {/* Miss direction — only when Miss selected */}
+          {result === 'Miss' && (
+            <div className="mt-2">
+              <RadioGroup
+                options={MISS_DIRECTION_OPTIONS}
+                selected={missDirection}
+                onChange={setMissDirection}
+                cols="grid-cols-4"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Proximity — resets, 2×2 grid */}
+        <div>
+          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Proximity</label>
+          <RadioGroup options={PROXIMITY_OPTIONS} selected={proximity} onChange={setProximity} />
+        </div>
+
+        {/* Surface — persists, 3 buttons */}
+        <div>
+          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Surface</label>
+          <RadioGroup
+            options={LIE_SURFACE_OPTIONS}
+            selected={persisted.lie_surface}
+            onChange={v => setPersisted(p => ({ ...p, lie_surface: v }))}
+          />
         </div>
 
         {/* Lie Slope — persists */}
@@ -156,70 +291,108 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
           />
         </div>
 
-        {/* Proximity — resets */}
-        <div>
-          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Proximity</label>
-          {/* key changes on each "Holed Out" selection → re-mounts → CSS animation restarts */}
-          <div key={celebrationKey} className={proximity === 'Holed Out 🏆' ? 'animate-holed-out rounded-xl' : ''}>
-            <select
-              value={proximity}
-              onChange={e => {
-                const val = e.target.value
-                setProximity(val)
-                if (val === 'Holed Out 🏆') setCelebrationKey(k => k + 1)
-              }}
-              className={`w-full min-h-[44px] border rounded-xl px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 ${
-                proximity === 'Holed Out 🏆'
-                  ? 'border-[#c9a84c] text-[#c9a84c] focus:ring-[#c9a84c]'
-                  : 'border-[#1a4731] text-[#1a1a1a] focus:ring-[#1a4731]'
-              }`}
-            >
-              <option value="">— select —</option>
-              {PROXIMITY_OPTIONS.map(p => (
-                <option
-                  key={p}
-                  value={p}
-                  style={
-                    p === 'Holed Out 🏆' ? { color: '#c9a84c' } :
-                    p === '11 ft+' ? { color: '#8b0000' } :
-                    undefined
-                  }
-                >
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Lie Surface — persists */}
-        <div>
-          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Surface</label>
-          <select
-            value={persisted.lie_surface}
-            onChange={e => setPersisted(p => ({ ...p, lie_surface: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {LIE_SURFACE_OPTIONS.map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Club — persists */}
+        {/* Club — persists, full custom management */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Club</label>
-          <select
-            value={persisted.club}
-            onChange={e => setPersisted(p => ({ ...p, club: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {CLUB_OPTIONS.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap gap-2">
+            {clubs.map(club =>
+              editingClubId === club.id ? (
+                <div key={club.id} className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={editingLabel}
+                    onChange={e => setEditingLabel(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmEditClub() } }}
+                    autoFocus
+                    className="w-24 min-h-[44px] border border-[#1a4731] rounded-xl px-2 text-sm text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
+                  />
+                  <button
+                    type="button"
+                    onClick={confirmEditClub}
+                    className="min-h-[44px] px-3 bg-[#1a4731] text-[#f5e6c8] rounded-xl text-sm font-semibold"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingClubId(null); setEditingLabel('') }}
+                    className="min-h-[44px] px-2 text-[#4a4a4a] text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div key={club.id} className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedClub(selectedClub === club.label ? null : club.label)}
+                    className={`min-h-[44px] px-4 text-base rounded-xl border-2 select-none transition-colors ${
+                      selectedClub === club.label
+                        ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
+                        : 'bg-white border-[#1a4731] text-[#1a4731]'
+                    }`}
+                  >
+                    {club.label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingClubId(club.id); setEditingLabel(club.label) }}
+                    className="min-h-[44px] px-1.5 text-sm text-[#4a4a4a] hover:text-[#1a4731] select-none"
+                    aria-label={`Edit ${club.label}`}
+                  >
+                    ✏️
+                  </button>
+                  {!club.isDefault && (
+                    <button
+                      type="button"
+                      onClick={() => removeCustomClub(club.id)}
+                      className="w-5 h-5 flex items-center justify-center bg-[#8b0000] text-white text-[10px] rounded-full"
+                      aria-label={`Remove ${club.label}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Add custom club */}
+            {showAddInput ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={addInputValue}
+                  onChange={e => setAddInputValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmAddClub() } }}
+                  placeholder="e.g. MG4 54"
+                  autoFocus
+                  className="w-28 min-h-[44px] border border-[#1a4731] rounded-xl px-2 text-sm text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
+                />
+                <button
+                  type="button"
+                  onClick={confirmAddClub}
+                  className="min-h-[44px] px-3 bg-[#1a4731] text-[#f5e6c8] rounded-xl text-sm font-semibold"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddInput(false); setAddInputValue('') }}
+                  className="min-h-[44px] px-2 text-[#4a4a4a] text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddInput(true)}
+                className="min-h-[44px] px-4 text-base rounded-xl border-2 border-dashed border-[#1a4731] text-[#1a4731] bg-white select-none"
+              >
+                + Add
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Notes — resets */}

@@ -3,11 +3,12 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { addPutt } from '@/app/putting/[id]/actions'
 
-const MISS_OPTIONS = ['Left', 'Right', 'Long', 'Short']
-const PUTT_LENGTH_OPTIONS = ['Inside 1 ft', '1–2 ft', '2–3 ft', '3–5 ft', '5–8 ft', '8–12 ft', '12–20 ft', '20 ft+']
+const MISS_OPTIONS = ['High', 'Low', 'Left', 'Right', 'Long', 'Short']
 const GREEN_SPEED_OPTIONS = ['Slow', 'Medium', 'Fast']
 const SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BREAK_OPTIONS = ['Straight', 'Left', 'Right']
+const MISS_DISTANCE_OPTIONS = ['Inches', '< 1 ft', '1–3 ft', '3 ft+']
+const DEFAULT_PUTT_LENGTH_OPTIONS = ['3–4 ft', '4–6 ft', '6–8 ft', '8 ft+']
 
 function ToggleGroup({
   options,
@@ -48,6 +49,42 @@ function ToggleGroup({
   )
 }
 
+function RadioGroup({
+  options,
+  selected,
+  onChange,
+  cols,
+}: {
+  options: string[]
+  selected: string
+  onChange: (value: string) => void
+  cols?: string
+}) {
+  const gridCols = cols ?? (
+    options.length === 3 ? 'grid-cols-3' :
+    options.length === 4 ? 'grid-cols-2' :
+    'grid-cols-3'
+  )
+  return (
+    <div className={`grid ${gridCols} gap-2`}>
+      {options.map(opt => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(selected === opt ? '' : opt)}
+          className={`flex items-center justify-center min-h-[44px] text-base rounded-xl border-2 select-none transition-colors ${
+            selected === opt
+              ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
+              : 'bg-white border-[#1a4731] text-[#1a4731]'
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 type Persisted = {
   putt_length: string
   green_speed: string
@@ -69,16 +106,34 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
   // Persisted across putts
   const [persisted, setPersisted] = useState<Persisted>(EMPTY_PERSISTED)
 
+  // Putt length options — default set plus any custom additions
+  const [puttLengthOptions, setPuttLengthOptions] = useState<string[]>(DEFAULT_PUTT_LENGTH_OPTIONS)
+  const [showPuttLengthAdd, setShowPuttLengthAdd] = useState(false)
+  const [puttLengthAddValue, setPuttLengthAddValue] = useState('')
+
   // Resets on every submit
   const [result, setResult] = useState('')
   const [miss, setMiss] = useState<string[]>([])
+  const [missDistance, setMissDistance] = useState('')
   const [notes, setNotes] = useState('')
 
   function clearAll() {
     setPersisted(EMPTY_PERSISTED)
+    setShowPuttLengthAdd(false)
+    setPuttLengthAddValue('')
     setResult('')
     setMiss([])
+    setMissDistance('')
     setNotes('')
+  }
+
+  function confirmAddPuttLength() {
+    const label = puttLengthAddValue.trim()
+    if (!label) return
+    setPuttLengthOptions(prev => prev.includes(label) ? prev : [...prev, label])
+    setPersisted(p => ({ ...p, putt_length: label }))
+    setShowPuttLengthAdd(false)
+    setPuttLengthAddValue('')
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -91,11 +146,12 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
         green_speed: persisted.green_speed || null,
         slope: persisted.slope || null,
         break: persisted.break || null,
+        miss_distance: result === 'Missed' ? (missDistance || null) : null,
         notes: notes || null,
       })
-      // Reset per-putt fields; persisted fields stay
       setResult('')
       setMiss([])
+      setMissDistance('')
       setNotes('')
       router.refresh()
     })
@@ -126,7 +182,7 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
                 name="result"
                 value="Made 🎯"
                 checked={result === 'Made 🎯'}
-                onChange={() => { setResult('Made 🎯'); setMiss([]) }}
+                onChange={() => { setResult('Made 🎯'); setMiss([]); setMissDistance('') }}
                 className="sr-only peer"
               />
               <span className={`flex items-center justify-center min-h-[52px] text-base font-semibold rounded-xl border-2 select-none transition-colors ${
@@ -143,7 +199,7 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
                 name="result"
                 value="Lip Out"
                 checked={result === 'Lip Out'}
-                onChange={() => setResult('Lip Out')}
+                onChange={() => { setResult('Lip Out'); setMissDistance('') }}
                 className="sr-only peer"
               />
               <span className={`flex items-center justify-center min-h-[52px] text-base font-semibold rounded-xl border-2 select-none transition-colors ${
@@ -182,64 +238,94 @@ export default function PuttForm({ sessionId }: { sessionId: string }) {
           </div>
         )}
 
-        {/* Putt Length — persists */}
+        {/* Miss Distance — visible only when Missed, always resets */}
+        {result === 'Missed' && (
+          <div>
+            <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Miss Distance</label>
+            <RadioGroup
+              options={MISS_DISTANCE_OPTIONS}
+              selected={missDistance}
+              onChange={setMissDistance}
+            />
+          </div>
+        )}
+
+        {/* Putt Length — persists, buttons + Add custom */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Putt Length</label>
-          <select
-            value={persisted.putt_length}
-            onChange={e => setPersisted(p => ({ ...p, putt_length: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {PUTT_LENGTH_OPTIONS.map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            <RadioGroup
+              options={puttLengthOptions}
+              selected={persisted.putt_length}
+              onChange={v => setPersisted(p => ({ ...p, putt_length: v }))}
+              cols="grid-cols-2"
+            />
+            {showPuttLengthAdd ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={puttLengthAddValue}
+                  onChange={e => setPuttLengthAddValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmAddPuttLength() } }}
+                  placeholder="e.g. 2–3 ft"
+                  autoFocus
+                  className="flex-1 min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-sm text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
+                />
+                <button
+                  type="button"
+                  onClick={confirmAddPuttLength}
+                  className="min-h-[44px] px-4 bg-[#1a4731] text-[#f5e6c8] rounded-xl text-sm font-semibold"
+                >
+                  OK
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPuttLengthAdd(false); setPuttLengthAddValue('') }}
+                  className="min-h-[44px] px-3 text-[#4a4a4a] text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPuttLengthAdd(true)}
+                className="w-full min-h-[44px] text-base rounded-xl border-2 border-dashed border-[#1a4731] text-[#1a4731] bg-white select-none"
+              >
+                + Add
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Green Speed — persists */}
+        {/* Green Speed — persists, 3 buttons */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Green Speed</label>
-          <select
-            value={persisted.green_speed}
-            onChange={e => setPersisted(p => ({ ...p, green_speed: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {GREEN_SPEED_OPTIONS.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <RadioGroup
+            options={GREEN_SPEED_OPTIONS}
+            selected={persisted.green_speed}
+            onChange={v => setPersisted(p => ({ ...p, green_speed: v }))}
+          />
         </div>
 
-        {/* Slope — persists */}
+        {/* Slope — persists, 3 buttons */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Slope</label>
-          <select
-            value={persisted.slope}
-            onChange={e => setPersisted(p => ({ ...p, slope: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {SLOPE_OPTIONS.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <RadioGroup
+            options={SLOPE_OPTIONS}
+            selected={persisted.slope}
+            onChange={v => setPersisted(p => ({ ...p, slope: v }))}
+          />
         </div>
 
-        {/* Break — persists */}
+        {/* Break — persists, 3 buttons */}
         <div>
           <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Break</label>
-          <select
-            value={persisted.break}
-            onChange={e => setPersisted(p => ({ ...p, break: e.target.value }))}
-            className="w-full min-h-[44px] border border-[#1a4731] rounded-xl px-3 py-2 text-base text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-          >
-            <option value="">— select —</option>
-            {BREAK_OPTIONS.map(b => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
+          <RadioGroup
+            options={BREAK_OPTIONS}
+            selected={persisted.break}
+            onChange={v => setPersisted(p => ({ ...p, break: v }))}
+          />
         </div>
 
         {/* Notes — resets */}

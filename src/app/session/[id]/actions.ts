@@ -14,6 +14,11 @@ type ShotData = {
 
 export async function addShot(sessionId: string, data: ShotData) {
   const supabase = await createClient()
+
+  // Explicit auth check — RLS also enforces this, but defense-in-depth
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
   await supabase.from('shots').insert({
     session_id: sessionId,
     ...data,

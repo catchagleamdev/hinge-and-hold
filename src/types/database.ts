@@ -39,6 +39,7 @@ export type Database = {
           created_at: string
           result: string | null
           miss_direction: string[] | null
+          miss_distance: string | null
           putt_length: string | null
           green_speed: string | null
           slope: string | null
@@ -51,6 +52,7 @@ export type Database = {
           created_at?: string
           result?: string | null
           miss_direction?: string[] | null
+          miss_distance?: string | null
           putt_length?: string | null
           green_speed?: string | null
           slope?: string | null
@@ -63,6 +65,7 @@ export type Database = {
           created_at?: string
           result?: string | null
           miss_direction?: string[] | null
+          miss_distance?: string | null
           putt_length?: string | null
           green_speed?: string | null
           slope?: string | null

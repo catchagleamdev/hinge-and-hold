@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 const SYSTEM_PROMPT = `You are a short game coach teaching the Phil Mickelson hinge-and-hold method.
 Core principles: weight forward, hands ahead, hinge early, hold through impact — hands always continue to target.
@@ -18,6 +19,13 @@ Miss direction diagnosis:
 Respond in 2-3 sentences maximum. Be specific and direct. Name one adjustment only. Do not give generic golf advice. Stay within the hinge-and-hold framework. Tone: calm caddie, not a cheerleader.`
 
 export async function POST(req: NextRequest) {
+  // Auth guard — must be a logged-in user
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { shots } = await req.json()
 

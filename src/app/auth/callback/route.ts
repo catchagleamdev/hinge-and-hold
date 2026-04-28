@@ -5,7 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/home'
+
+  // Validate next — must be a simple relative path (starts with / but not //)
+  // Rejects protocol-relative URLs like //evil.com that would redirect off-site
+  const rawNext = searchParams.get('next') ?? '/home'
+  const next = /^\/[^/]/.test(rawNext) ? rawNext : '/home'
 
   if (code) {
     const supabase = await createClient()

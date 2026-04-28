@@ -89,6 +89,23 @@ export default async function PuttingSummaryPage({ params }) {
   // Pattern callout inputs
   const topMiss = Object.entries(missCounts).sort((a, b) => b[1] - a[1])[0]
 
+  // Miss Pattern by Break + Slope (High/Low analysis)
+  const breakSlopePatterns: Record<string, { high: number; low: number; left: number; right: number }> = {}
+  missedOrLipOut.forEach(p => {
+    if (!p.break || !p.slope) return
+    const key = comboLabel(p.slope, p.break)
+    if (!breakSlopePatterns[key]) breakSlopePatterns[key] = { high: 0, low: 0, left: 0, right: 0 }
+    ;(p.miss_direction ?? []).forEach((m: string) => {
+      if (m === 'High') breakSlopePatterns[key].high++
+      else if (m === 'Low') breakSlopePatterns[key].low++
+      else if (m === 'Left') breakSlopePatterns[key].left++
+      else if (m === 'Right') breakSlopePatterns[key].right++
+    })
+  })
+  const sortedBreakSlopePatterns = Object.entries(breakSlopePatterns)
+    .filter(([, p]) => p.high + p.low + p.left + p.right > 0)
+    .sort((a, b) => (b[1].high + b[1].low + b[1].left + b[1].right) - (a[1].high + a[1].low + a[1].left + a[1].right))
+
   async function finish(formData) {
     'use server'
     const supabase = await createClient()
@@ -148,6 +165,31 @@ export default async function PuttingSummaryPage({ params }) {
                   .map(([miss, count]) => (
                     <StatBar key={miss} label={miss} count={count} total={missedOrLipOut.length} />
                   ))}
+              </div>
+            )}
+
+            {/* Miss Pattern by Break + Slope */}
+            {sortedBreakSlopePatterns.length > 0 && (
+              <div className="bg-white rounded-2xl border border-[#1a4731]/20 p-5 space-y-3">
+                <h2 className="text-base font-semibold text-[#1a1a1a]">Miss Pattern by Break + Slope</h2>
+                {sortedBreakSlopePatterns.map(([combo, counts]) => {
+                  const hasHighLow = counts.high > 0 || counts.low > 0
+                  const parts: string[] = []
+                  if (hasHighLow) {
+                    if (counts.low > 0) parts.push(`${counts.low} Low`)
+                    if (counts.high > 0) parts.push(`${counts.high} High`)
+                  } else {
+                    if (counts.left > 0) parts.push(`${counts.left} Left`)
+                    if (counts.right > 0) parts.push(`${counts.right} Right`)
+                  }
+                  if (parts.length === 0) return null
+                  return (
+                    <div key={combo} className="flex items-baseline justify-between gap-3">
+                      <span className="text-[#1a1a1a] text-sm font-medium">{combo}</span>
+                      <span className="text-[#4a4a4a] text-sm shrink-0">{parts.join(', ')}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
 

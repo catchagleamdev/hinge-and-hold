@@ -10,10 +10,11 @@ export default async function LoginPage() {
 
   async function signInWithGoogle() {
     'use server'
+    // Prefer the configured site URL over the host header (host can be spoofed)
     const headersList = await headers()
     const host = headersList.get('host')
     const protocol = host?.startsWith('localhost') ? 'http' : 'https'
-    const origin = `${protocol}://${host}`
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`
 
     const supabase = await createClient()
     const { data } = await supabase.auth.signInWithOAuth({
