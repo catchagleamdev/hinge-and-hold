@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function createSession(
   sessionType: 'chipping' | 'putting',
-  selectedClubs: string[]
+  selectedClubs: string[],
+  localDate: string
 ): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -12,7 +13,7 @@ export async function createSession(
   const { data } = await supabase
     .from('sessions')
     .insert({
-      session_date: new Date().toISOString().split('T')[0],
+      session_date: localDate,
       user_id: user.id,
       session_type: sessionType,
       selected_clubs: selectedClubs.length > 0 ? selectedClubs : null,

@@ -24,7 +24,8 @@ export default function ClubPickerClient({
 
   function handleStart() {
     startTransition(async () => {
-      const sessionId = await createSession(sessionType, selected)
+      const localDate = new Date().toLocaleDateString('en-CA')
+      const sessionId = await createSession(sessionType, selected, localDate)
       if (sessionId) {
         const dest = sessionType === 'putting' ? `/putting/${sessionId}` : `/session/${sessionId}`
         router.push(dest)
