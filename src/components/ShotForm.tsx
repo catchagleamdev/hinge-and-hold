@@ -10,7 +10,7 @@ const LIE_SURFACE_OPTIONS = ['Fairway', 'Fringe', 'Rough']
 const LIE_SLOPE_OPTIONS = ['Flat', 'Uphill', 'Downhill']
 const BALL_POSITION_OPTIONS = ['Level', 'Above Feet', 'Below Feet']
 
-type Club = { id: string; label: string; isDefault: boolean }
+type Club = { id: string; label: string }
 
 function ToggleGroup({
   options,
@@ -100,21 +100,12 @@ const EMPTY_PERSISTED: Persisted = {
   ball_position: [],
 }
 
-export default function ShotForm({ sessionId }: { sessionId: string }) {
+export default function ShotForm({ sessionId, clubs: clubLabels }: { sessionId: string; clubs: string[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Club state — custom labels + selection persist for the session, survive shot submit
-  const [clubs, setClubs] = useState<Club[]>([
-    { id: 'gw', label: 'GW', isDefault: true },
-    { id: 'sw', label: 'SW', isDefault: true },
-    { id: 'lw', label: 'LW', isDefault: true },
-  ])
+  const clubs: Club[] = clubLabels.map(label => ({ id: label, label }))
   const [selectedClub, setSelectedClub] = useState<string | null>(null)
-  const [editingClubId, setEditingClubId] = useState<string | null>(null)
-  const [editingLabel, setEditingLabel] = useState('')
-  const [showAddInput, setShowAddInput] = useState(false)
-  const [addInputValue, setAddInputValue] = useState('')
 
   // Persisted across shots
   const [persisted, setPersisted] = useState<Persisted>(EMPTY_PERSISTED)
@@ -129,41 +120,11 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
   function clearAll() {
     setPersisted(EMPTY_PERSISTED)
     setSelectedClub(null)
-    setEditingClubId(null)
-    setEditingLabel('')
-    setShowAddInput(false)
-    setAddInputValue('')
     setContact([])
     setResult('')
     setMissDirection('')
     setProximity('')
     setNotes('')
-  }
-
-  function confirmEditClub() {
-    const newLabel = editingLabel.trim()
-    if (!newLabel || !editingClubId) return
-    const oldClub = clubs.find(c => c.id === editingClubId)
-    setClubs(prev => prev.map(c => c.id === editingClubId ? { ...c, label: newLabel } : c))
-    if (oldClub && selectedClub === oldClub.label) setSelectedClub(newLabel)
-    setEditingClubId(null)
-    setEditingLabel('')
-  }
-
-  function confirmAddClub() {
-    const label = addInputValue.trim()
-    if (!label) return
-    const id = `custom_${Date.now()}`
-    setClubs(prev => [...prev, { id, label, isDefault: false }])
-    setSelectedClub(label)
-    setShowAddInput(false)
-    setAddInputValue('')
-  }
-
-  function removeCustomClub(id: string) {
-    const club = clubs.find(c => c.id === id)
-    if (club && selectedClub === club.label) setSelectedClub(null)
-    setClubs(prev => prev.filter(c => c.id !== id))
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -291,109 +252,28 @@ export default function ShotForm({ sessionId }: { sessionId: string }) {
           />
         </div>
 
-        {/* Club — persists, full custom management */}
-        <div>
-          <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Club</label>
-          <div className="flex flex-wrap gap-2">
-            {clubs.map(club =>
-              editingClubId === club.id ? (
-                <div key={club.id} className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={editingLabel}
-                    onChange={e => setEditingLabel(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmEditClub() } }}
-                    autoFocus
-                    className="w-24 min-h-[44px] border border-[#1a4731] rounded-xl px-2 text-sm text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-                  />
-                  <button
-                    type="button"
-                    onClick={confirmEditClub}
-                    className="min-h-[44px] px-3 bg-[#1a4731] text-[#f5e6c8] rounded-xl text-sm font-semibold"
-                  >
-                    ✓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditingClubId(null); setEditingLabel('') }}
-                    className="min-h-[44px] px-2 text-[#4a4a4a] text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <div key={club.id} className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedClub(selectedClub === club.label ? null : club.label)}
-                    className={`min-h-[44px] px-4 text-base rounded-xl border-2 select-none transition-colors ${
-                      selectedClub === club.label
-                        ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
-                        : 'bg-white border-[#1a4731] text-[#1a4731]'
-                    }`}
-                  >
-                    {club.label}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditingClubId(club.id); setEditingLabel(club.label) }}
-                    className="min-h-[44px] px-1.5 text-sm text-[#4a4a4a] hover:text-[#1a4731] select-none"
-                    aria-label={`Edit ${club.label}`}
-                  >
-                    ✏️
-                  </button>
-                  {!club.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => removeCustomClub(club.id)}
-                      className="w-5 h-5 flex items-center justify-center bg-[#8b0000] text-white text-[10px] rounded-full"
-                      aria-label={`Remove ${club.label}`}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              )
-            )}
-
-            {/* Add custom club */}
-            {showAddInput ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={addInputValue}
-                  onChange={e => setAddInputValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmAddClub() } }}
-                  placeholder="e.g. MG4 54"
-                  autoFocus
-                  className="w-28 min-h-[44px] border border-[#1a4731] rounded-xl px-2 text-sm text-[#1a1a1a] bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4731]"
-                />
+        {/* Club — session clubs from My Bag */}
+        {clubs.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-[#4a4a4a] mb-2">Club</label>
+            <div className="flex flex-wrap gap-2">
+              {clubs.map(club => (
                 <button
+                  key={club.id}
                   type="button"
-                  onClick={confirmAddClub}
-                  className="min-h-[44px] px-3 bg-[#1a4731] text-[#f5e6c8] rounded-xl text-sm font-semibold"
+                  onClick={() => setSelectedClub(selectedClub === club.label ? null : club.label)}
+                  className={`min-h-[44px] px-4 text-base rounded-xl border-2 select-none transition-colors ${
+                    selectedClub === club.label
+                      ? 'bg-[#1a4731] border-[#1a4731] text-[#f5e6c8]'
+                      : 'bg-white border-[#1a4731] text-[#1a4731]'
+                  }`}
                 >
-                  ✓
+                  {club.label}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowAddInput(false); setAddInputValue('') }}
-                  className="min-h-[44px] px-2 text-[#4a4a4a] text-sm"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowAddInput(true)}
-                className="min-h-[44px] px-4 text-base rounded-xl border-2 border-dashed border-[#1a4731] text-[#1a4731] bg-white select-none"
-              >
-                + Add
-              </button>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Notes — resets */}
         <div>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import PuttList from '@/components/PuttList'
 import PuttForm from '@/components/PuttForm'
+import HomeButton from '@/components/HomeButton'
 
 export default async function PuttingSessionPage({ params }) {
   const { id } = await params
@@ -31,7 +32,7 @@ export default async function PuttingSessionPage({ params }) {
   return (
     <div className="min-h-screen bg-[#f5e6c8] flex flex-col">
       <header className="bg-[#1a4731] px-4 py-4 flex items-center justify-between">
-        <a href="/home" className="text-[#f5e6c8] text-base min-h-[44px] flex items-center">← Home</a>
+        <HomeButton sessionId={id} table="putts" />
         <span className="text-[#f5e6c8] text-sm font-medium">{session.session_date}</span>
         <a href="/field-guide" className="text-[#f5e6c8] text-sm font-medium min-h-[44px] flex items-center">Field Guide</a>
       </header>

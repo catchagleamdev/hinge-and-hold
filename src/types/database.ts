@@ -12,6 +12,7 @@ export type Database = {
           location: string | null
           notes: string | null
           user_id: string
+          selected_clubs: string[] | null
         }
         Insert: {
           id?: string
@@ -21,6 +22,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           user_id: string
+          selected_clubs?: string[] | null
         }
         Update: {
           id?: string
@@ -30,6 +32,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           user_id?: string
+          selected_clubs?: string[] | null
         }
       }
       putts: {
@@ -112,6 +115,32 @@ export type Database = {
           ball_position?: string[] | null
           club?: string | null
           notes?: string | null
+        }
+      }
+      user_clubs: {
+        Row: {
+          id: string
+          user_id: string
+          label: string
+          notes: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          label: string
+          notes?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          label?: string
+          notes?: string | null
+          sort_order?: number
+          created_at?: string
         }
       }
     }
